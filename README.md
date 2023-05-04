@@ -1,36 +1,29 @@
 # AutoCrit
 A repository for transformer critique learning and generation.
 
-## Scalar reward models
-Train [OpenLLaMA-13B](https://github.com/openlm-research/open_llama) on [Helpful and Harmless dataset](https://github.com/anthropics/hh-rlhf):
 
+## Preference models
+Train (laptop):
 ```bash
-accelerate launch --config_file configs/accelerate/zero2.yaml \
-           train_reward_model.py \
-           --model_path openlm-research/open_llama_13b \
-           --dataset pvduy/rm_oa_hh \
-           --batch_size 1 \
-           --eval_interval 1000 \
-           --lr 0.00001 \
-           --weight_decay 0 \
-           --num_unfrozen_layers 12 \
-           --gradient_checkpointing \
-           --checkpoint_dir checkpoints \
-           --calibration_datasets reciprocate/vicuna-fair-eval
+python preference.py --model_path reciprocate/gpt2-tiny --dataset reciprocate/number-pairs
 ```
+https://wandb.ai/sorry/autocrit/runs/azryjr2z?workspace=user-sorry
 
-Usage:
-```python
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-ckpt = "reciprocate/openllama-13b_rm_oasst-hh"
-model = AutoModelForSequenceClassification.from_pretrained(ckpt, load_in_4bit=True)
-tokenizer = AutoTokenizer.from_pretrained(ckpt)
-
-model(**tokenizer("ASSISTANT: This sentence is a lie.", return_tensors="pt"))[0].item()
+Train (cluster):
 ```
+accelerate launch --config_file ../configs/accelerate/zero2-bf16.yaml preference.py --model_path gpt2 --dataset Dahoas/rm-static --batch_size 8 --eval_interval 100
+```
+https://wandb.ai/sorry/autocrit/runs/e4adfber?workspace=user-sorry
 
-Output:
+Eval:
+```bash
+accelerate launch --config_file ../configs/accelerate/ddp.yaml preference.py --model_path reciprocate/dahoas-gptj-rm-static --dataset Dahoas/rm-static --only_eval
+```
+https://wandb.ai/sorry/autocrit/runs/l3pslev5?workspace=user-sorry
+
+Use:
 ```python
--1.626953125
+from transformers import AutoModelForSequenceClassification
+model = AutoModelForSequenceClassification.from_pretrained("reciprocate/dahoas-gptj-rm-static")
+model(**tokenizer("How was your day?", return_tensors="pt"))[0]
 ```
