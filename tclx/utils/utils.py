@@ -1,13 +1,16 @@
-import yaml
-from transformers import AutoModelForCausalLM, AutoConfig, AutoModelForSequenceClassification, AutoModel, AutoTokenizer
-from torch import nn
 import functools
-from deepspeed.utils.zero_to_fp32 import load_state_dict_from_zero_checkpoint
-import os
-import torch
 import json
+import os
+
+import torch
+import yaml
+from deepspeed.utils.zero_to_fp32 import load_state_dict_from_zero_checkpoint
+from torch import nn
+from transformers import (AutoConfig, AutoModelForCausalLM,
+                          AutoModelForSequenceClassification, AutoTokenizer)
 
 from tclx.model.reward_models import RewardModel
+
 
 def load_yaml(config_path):
     with open(config_path, "r") as f:
@@ -78,7 +81,11 @@ def hf_get_causal_hidden_layers(model: nn.Module):
 def freeze_bottom_causal_layers(model: nn.Module, num_layers_unfrozen):
     """Freezes the bottom transformer block layers of the specified model."""
     hidden_layers = hf_get_causal_hidden_layers(model)
-    num_layers_unfrozen = int(len(hidden_layers) * num_layers_unfrozen) if type(num_layers_unfrozen) is float else num_layers_unfrozen
+    num_layers_unfrozen = (
+        int(len(hidden_layers) * num_layers_unfrozen)
+        if type(num_layers_unfrozen) is float
+        else num_layers_unfrozen
+    )
     if num_layers_unfrozen == 0:
         hidden_layers_to_freeze = list(hidden_layers)
     elif num_layers_unfrozen > 0:
@@ -96,7 +103,9 @@ def make_rm(model_name, type_t, tok_path, save_model):
         reward_model = AutoModelForSequenceClassification.from_config(config)
     elif type_t == "causal":
         tokenizer = AutoTokenizer.from_pretrained(tok_path)
-        reward_model = RewardModel(model_name, tokenizer(tokenizer.eos_token)["input_ids"][0], save_model)
+        reward_model = RewardModel(
+            model_name, tokenizer(tokenizer.eos_token)["input_ids"][0], save_model
+        )
     else:
         raise ValueError("Unsupported reward model type {}".format(type_t))
     return reward_model
@@ -108,12 +117,16 @@ def load_rm(model_name, tokenizer_name, model_path, save_model):
     return rm
 
 
-def convert_deepspeed_checkpoint(model_name, tok_name, model_path, model_ckpt, is_rm=True, type_t="causal"):
+def convert_deepspeed_checkpoint(
+    model_name, tok_name, model_path, model_ckpt, is_rm=True, type_t="causal"
+):
     if is_rm:
         model = make_rm(model_name, type_t, tok_name, True)
     else:
         model = AutoModelForCausalLM.from_pretrained(model_name)
-    fp32_model = load_state_dict_from_zero_checkpoint(model, os.path.join(model_path, model_ckpt))
+    fp32_model = load_state_dict_from_zero_checkpoint(
+        model, os.path.join(model_path, model_ckpt)
+    )
     if type_t == "causal" and is_rm:
         if not os.path.exists(os.path.join(model_path, "hf_ckpt")):
             os.mkdir(os.path.join(model_path, "hf_ckpt"))
@@ -128,7 +141,9 @@ def split_ckpt(ckpt_path, num_chunks):
     keys = list(sd.keys())
     chunk_size = len(keys) // num_chunks
     num_chunks = (len(keys) + chunk_size - 1) // chunk_size
-    key_batches = [keys[chunk_size*i : chunk_size * (i+1)] for i in range(num_chunks)]
+    key_batches = [
+        keys[chunk_size * i: chunk_size * (i + 1)] for i in range(num_chunks)
+    ]
     index = {}
     for i, key_batch in enumerate(key_batches):
         sub_dict_name = "hf_ckpt_{}.pt".format(i)
@@ -145,7 +160,9 @@ def split_ckpt(ckpt_path, num_chunks):
 
 def hf_upload(converted_ckpt, repo_name, make_repo=True):
     import os
+
     from huggingface_hub import HfApi, create_repo
+
     if make_repo:
         create_repo(repo_name, repo_type="model", private=False)
 
@@ -163,7 +180,8 @@ def hf_upload(converted_ckpt, repo_name, make_repo=True):
         )
         print(f"Successfully uploaded {file} !")
 
+
 if __name__ == "__main__":
     convert_deepspeed_checkpoint(is_rm=True)
-    #split_ckpt(46)
+    # split_ckpt(46)
     hf_upload(make_repo=True)

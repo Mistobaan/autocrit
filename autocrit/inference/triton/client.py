@@ -46,11 +46,14 @@ async def infer(
 
     return logits, output_ids
 
+
 def Client(url: str):
-  return grpcclient.InferenceServerClient(url=url)
+    return grpcclient.InferenceServerClient(url=url)
+
 
 if __name__ == "__main__":
     import argparse
+
     from transformers import AutoTokenizer
 
     parser = argparse.ArgumentParser()
@@ -67,9 +70,14 @@ if __name__ == "__main__":
                 prompt = input("Prompt: ")
                 input_ids = tokenizer.encode(prompt, return_tensors="pt")
                 last_logits, output_ids = await infer(
-                    triton_client, args.model, input_ids, new_tokens=128, temperature=1.0
+                    triton_client,
+                    args.model,
+                    input_ids,
+                    new_tokens=128,
+                    temperature=1.0,
                 )
                 print(tokenizer.decode(output_ids[0]))
 
     import asyncio
+
     asyncio.run(main())

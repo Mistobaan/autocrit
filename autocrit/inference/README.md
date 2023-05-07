@@ -18,4 +18,4 @@ or run the [example sbatch](./triton.sbatch)
 sbatch triton.sbatch
 ```
 
-Use `ip-hostname-of-node:8001` as the url 
+Use `ip-hostname-of-node:8001` as the url

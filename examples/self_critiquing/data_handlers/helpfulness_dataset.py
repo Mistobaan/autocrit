@@ -1,5 +1,5 @@
-from datasets import Dataset, splits, DatasetDict
 import jsonlines
+from datasets import Dataset, DatasetDict
 
 
 def extract_helpful_and_rm_data(data_path):
